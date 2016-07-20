@@ -1,0 +1,5 @@
+int32 number
+float64 radius
+float64[2] longitude_range
+float64[2] latitude_range
+---
