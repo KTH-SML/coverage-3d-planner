@@ -9,37 +9,38 @@ import coverage_3d_planner.msg as cms
 
 
 
+
+
 class Landmark(object):
 
 
     def __init__(self,
-            pos=np.array([0.0, 0.0, 0.0]),
-            ori=np.array([1.0, 0.0, 0.0]),
+            pos=np.zeros(3),
+            ori=np.eye(3),
             color='black'
             ):
         self._pos = np.array(pos)
-        self._ori = uts.normalize(ori)
+        self._ori = ori
         self._color = color
 
 
     @classmethod
     def from_msg(cls, msg):
         pos = np.array(msg.position)
-        ori = uts.normalize(np.array(msg.orientation))
+        ori = np.eye(3)
+        ori[:,0] = msg.x
+        ori[:,1] = msg.y
+        ori[:,2] = msg.z
         return cls(pos, ori)
 
         
     @classmethod
-    def random(cls,
-            xlim=(-3.0, 3.0),
-            ylim=(-3.0, 3.0),
-            zlim=(-3.0, 3.0)
-            ):
+    def random(cls, xlim, ylim, zlim):
         x = rdm.uniform(*xlim)
         y = rdm.uniform(*ylim)
         z = rdm.uniform(*zlim)
         pos = np.array([x,y,z])
-        ori = uts.normalize(np.random.rand(3)-0.5)
+        ori = np.eye(3)
         return cls(pos, ori)
 
 
