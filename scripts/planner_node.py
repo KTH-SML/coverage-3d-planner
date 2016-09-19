@@ -21,7 +21,7 @@ import utilities as uts
 lock = thd.Lock()
 #landmarks = set([lm.Landmark(ori=[-1,0.1])])
 landmarks = set()
-sensor = sn.Sensor(fp=fp.ConvexFootprint())
+sensor = sn.Sensor()
 
 
 
@@ -123,11 +123,14 @@ chg_gns_srv = rp.Service(
 def pose_cb(pose):
     global sensor
     global lock
-    p = np.array(pose.position)
-    n = np.array(pose.orientation)
+    p = np.array(pose.p)
+    R = np.eye(3)
+    R[:,0] = pose.x
+    R[:,1] = pose.y
+    R[:,2] = pose.z
     lock.acquire()
     sensor.pos = p
-    sensor.ori = n
+    sensor.ori = R
     lock.release()
 pose_sub = rp.Subscriber(
     'pose',
@@ -192,7 +195,7 @@ def work():
     lock.acquire()
     coverage = sensor.coverage(landmarks)
     p = sensor.pos
-    n = sensor.ori
+    R = sensor.ori
     if len(landmarks) == 0:
         v = np.zeros(3)
         w = np.zeros(3)
@@ -201,7 +204,9 @@ def work():
         v = -KP/len(landmarks)*sensor.cov_pos_grad(landmarks)
         v = uts.saturate(v,SP)
         #w = -smart_gain(coverage,KN/10,KN)*np.cross(n, sensor.cov_ori_grad(landmarks))
-        w = KN/len(landmarks)*np.cross(n, sensor.cov_ori_grad(landmarks))
+        og = sensor.cov_ori_grad(landmarks)
+        #w = KN/len(landmarks)*np.cross(R[:,0], og[0])
+        w = -KN/len(landmarks)*sum([np.cross(R[:,i], og[i]) for i in range(3)])
         w = uts.saturate(w, SN)
     coverage = sensor.coverage(landmarks)
     #lmks_msg = [lmk.to_msg() for lmk in landmarks]

@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.linalg as spl
 import matplotlib.pyplot as plt
 import arrow3d as a3d
 
@@ -13,8 +14,8 @@ class Sensor(object):
     def __init__(
 	        self,
 	        pos=np.array([0.0,0.0,0.0]),
-	        ori=np.array([1.0,0.0,0.0]),
-	        fp=fps.ConvexFootprint(),
+	        ori=np.eye(3),
+	        fp=fps.EggFootprint(),
 	        color = 'black',
 	        landmarks = []
 	        ):
@@ -34,10 +35,10 @@ class Sensor(object):
 
     def perception(self, lmk):
 	    p = self._pos
-	    n = self._ori
+	    R = self._ori
 	    q = lmk.pos
-	    m = lmk.ori
-	    return self._fp(p,n,q,m)
+	    S = lmk.ori
+	    return self._fp(p,R,q,S)
 
 
     def coverage(self, landmarks):
@@ -47,10 +48,10 @@ class Sensor(object):
 
     def per_pos_grad(self, lmk):
 	    p = self._pos
-	    n = self._ori
+	    R = self._ori
 	    q = lmk.pos
-	    m = lmk.ori
-	    return self._fp.pos_grad(p,n,q,m)
+	    S = lmk.ori
+	    return self._fp.pos_grad(p,R,q,S)
 
 
     def cov_pos_grad(self, landmarks):
@@ -60,15 +61,22 @@ class Sensor(object):
 
     def per_ori_grad(self, lmk):
 	    p = self._pos
-	    n = self._ori
+	    R = self._ori
 	    q = lmk.pos
-	    m = lmk.ori
-	    return self._fp.ori_grad(p,n,q,m)
+	    S = lmk.ori
+	    return self._fp.ori_grad(p,R,q,S)
 
 
     def cov_ori_grad(self, landmarks):
-	    return sum([self.per_ori_grad(lmk)
-		    for lmk in landmarks], np.zeros(3))
+        x = np.zeros(3)
+        y = np.zeros(3)
+        z = np.zeros(3)
+        for lmk in landmarks:
+            dx, dy, dz = self.per_ori_grad(lmk)
+            x += dx
+            y += dy
+            z += dz
+	    return x, y, z
 
 
     @property
@@ -85,7 +93,7 @@ class Sensor(object):
 
     @ori.setter
     def ori(self, value):
-	    self._ori = uts.normalize(value)
+	    self._ori = spl.polar(value)[0]
 	    
     @property
     def color(self):
@@ -112,21 +120,22 @@ class Sensor(object):
         point = ax.scatter(x,y,z,
             color=color,
             alpha=alpha)
-        arrow = None
+        arrows = list()
         if draw_orientation:
-            vec = scale*self.ori
-            arr = a3d.Arrow3D(
-                [x, x+vec[0]],
-                [y, y+vec[1]],
-                [z, z+vec[2]],
-                mutation_scale=20,
-                lw=1,
-                arrowstyle="-|>",
-                color=color,
-                alpha=alpha
-                )
-            arrow = ax.add_artist(arr)
-        return point, arrow
+            for j in range(3):
+                vec = scale*self.ori[:,j]
+                arr = a3d.Arrow3D(
+                    [x, x+vec[0]],
+                    [y, y+vec[1]],
+                    [z, z+vec[2]],
+                    mutation_scale=20,
+                    lw=1,
+                    arrowstyle="-|>",
+                    color=color,
+                    alpha=alpha
+                    )
+                arrows.append(ax.add_artist(arr))
+        return point, arrows
         
         
         

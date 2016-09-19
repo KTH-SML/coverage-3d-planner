@@ -36,11 +36,14 @@ draw_sensor_flag = True
 def pose_cb(pose):
     global sensor
     global draw_sensor_flag
-    p = np.array(pose.position)
-    n = np.array(pose.orientation)
+    p = np.array(pose.p)
+    R = np.eye(3)
+    R[:,0] = pose.x
+    R[:,1] = pose.y
+    R[:,2] = pose.z
     sensor_lock.acquire()
     sensor.pos = p
-    sensor.ori = n
+    sensor.ori = R
     draw_sensor_flag = True
     sensor_lock.release()
 pose_sub = rp.Subscriber('pose', cms.Pose, pose_cb)
@@ -79,28 +82,30 @@ draw_landmarks_service = rp.Service(
 
 
 
-point, arrow = sensor.draw()
+point, arrows = sensor.draw()
 lmks_artists = [lmk.draw() for lmk in landmarks]
 def work():
-    global point, arrow, lmks_artists
+    global point, arrows, lmks_artists
     global draw_sensor_flag, draw_landmarks_flag
     global sensor, sensor_lock
     global landmarks, landmarks_lock
     sensor_lock.acquire()
     if draw_sensor_flag:
         point.remove()
-        if not arrow == None:
-            arrow.remove()
-        point, arrow = sensor.draw()
+        if not len(arrows) == 0:
+            for arrow in arrows:
+                arrow.remove()
+        point, arrows = sensor.draw()
         draw_sensor_flag = False
     sensor_lock.release()
     landmarks_lock.acquire()
     if draw_landmarks_flag:
-        for lp, la in lmks_artists:
+        for lp, las in lmks_artists:
             lp.remove()
-            if not la == None:
-                la.remove()
-        lmks_artists = [lmk.draw(draw_orientation=False) for lmk in landmarks]
+            if not len(las)==0:
+                for la in las:
+                    la.remove()
+        lmks_artists = [lmk.draw(draw_orientation=True) for lmk in landmarks]
         draw_landmarks_flag = False
     landmarks_lock.release()
     plt.draw()

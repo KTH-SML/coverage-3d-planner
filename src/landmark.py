@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.linalg as spl
 import matplotlib.pyplot as plt
 import random as rdm
 import arrow3d as a3d
@@ -20,17 +21,18 @@ class Landmark(object):
             color='black'
             ):
         self._pos = np.array(pos)
-        self._ori = ori
+        self._ori = spl.polar(ori)[0]
         self._color = color
 
 
     @classmethod
     def from_msg(cls, msg):
-        pos = np.array(msg.position)
+        pos = np.array(msg.p)
         ori = np.eye(3)
         ori[:,0] = msg.x
         ori[:,1] = msg.y
         ori[:,2] = msg.z
+        ori = spl.polar(ori)[0]
         return cls(pos, ori)
 
         
@@ -40,14 +42,15 @@ class Landmark(object):
         y = rdm.uniform(*ylim)
         z = rdm.uniform(*zlim)
         pos = np.array([x,y,z])
-        ori = np.eye(3)
+        ori = np.random.rand(3,3)-0.5*np.ones((3,3))
+        ori = spl.polar(ori)[0]
         return cls(pos, ori)
 
 
     def to_msg(self):
-        msg = cms.Landmark(
-            position=self._pos.tolist(),
-            orientation=self._ori.tolist())
+        p = self.pos.tolist()
+        x, y, z = [self.ori[:,i].tolist() for i in range(3)]    
+        msg = cms.Landmark(p=p, x=x, y=y, z=z)
         return msg
 
 
@@ -60,7 +63,7 @@ class Landmark(object):
 
     @property
     def pos(self):
-        return self._pos
+        return np.array(self._pos)
 
 
     @pos.setter
@@ -70,12 +73,12 @@ class Landmark(object):
 
     @property
     def ori(self):
-        return self._ori
+        return np.array(self._ori)
 
 
     @ori.setter
     def ori(self, value):
-        self._ori = uts.normalize(value)
+        self._ori = spl.polar(value)[0]
 
 
     @property
@@ -94,7 +97,6 @@ class Landmark(object):
             alpha=1.0,
             color=None
             ):
-
         if color == None:
             color = self._color
         x, y, z = self._pos
@@ -102,21 +104,22 @@ class Landmark(object):
         point = ax.scatter(x,y,z,
             color=color,
             alpha=alpha)
-        arrow = None
+        arrows = list()
         if draw_orientation:
-            vec = scale*self.ori
-            arr = a3d.Arrow3D(
-                [x, x+vec[0]],
-                [y, y+vec[1]],
-                [z, z+vec[2]],
-                mutation_scale=20,
-                lw=1,
-                arrowstyle="-|>",
-                color=color,
-                alpha=alpha
-                )
-            arrow = ax.add_artist(arr)
-        return point, arrow
+            for j in range(3):
+                vec = scale*self.ori[:,j]
+                arr = a3d.Arrow3D(
+                    [x, x+vec[0]],
+                    [y, y+vec[1]],
+                    [z, z+vec[2]],
+                    mutation_scale=20,
+                    lw=1,
+                    arrowstyle="-|>",
+                    color=color,
+                    alpha=alpha
+                    )
+                arrows.append(ax.add_artist(arr))
+        return point, arrows
         
         
         
@@ -130,4 +133,7 @@ if __name__ == '__main__':
     ax.set_zlim3d(-3.0,3.0)
     lmk = Landmark()
     lmk.draw()
+    print lmk.pos
+    print lmk.ori
+    print lmk.to_msg()
     plt.show()

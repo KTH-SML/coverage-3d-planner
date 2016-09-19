@@ -57,11 +57,14 @@ def pose_cb(pose, name):
     global sensors
     global draw_sensor_flags
     global sensor_locks
-    p = np.array(pose.position)
-    n = np.array(pose.orientation)
+    p = np.array(pose.p)
+    R = np.eye(3)
+    R[:,0] = pose.x
+    R[:,1] = pose.y
+    R[:,2] = pose.z
     sensor_locks[name].acquire()
     sensors[name].pos = p
-    sensors[name].ori = n
+    sensors[name].ori = R
     draw_sensor_flags[name] = True
     sensor_locks[name].release()
 
@@ -147,17 +150,19 @@ def work():
         sensor_locks[name].acquire()
         if draw_sensor_flags[name]:
             points[name].remove()
-            if not arrows[name] == None:
-                arrows[name].remove()
+            if not len(arrows[name]) == 0:
+                for arrow in arrows[name]:
+                    arrow.remove()
             points[name], arrows[name] = sensors[name].draw()
             draw_sensor_flags[name] = False
         sensor_locks[name].release()
         landmarks_locks[name].acquire()
         if draw_landmarks_flags[name]:
-            for lp, la in lmks_artists[name]:
+            for lp, las in lmks_artists[name]:
                 lp.remove()
-                if not la == None:
-                    la.remove()
+                if not len(las) == 0:
+                    for la in las:
+                        la.remove()
             lmks_artists[name] = [
                 lmk.draw(
                     color=COLDIC[name],
