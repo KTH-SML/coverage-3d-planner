@@ -44,7 +44,7 @@ rp.wait_for_service('/draw_landmarks')
 draw_landmarks_proxy = rp.ServiceProxy(
     '/draw_landmarks',
     csv.DrawLandmarks)
-    
+
 
 
 
@@ -80,29 +80,29 @@ draw_landmarks_proxy = rp.ServiceProxy(
 
 
 
-def add_random_landmarks_handler(req):
-    global landmarks
-    global lock
-    new_landmarks = [
-        lm.Landmark.random(
-        	xlim=0.3*np.array(XLIM),
-        	ylim=0.3*np.array(YLIM),
-            zlim=0.3*np.array(ZLIM))
-        for index in range(req.num)]
-    lock.acquire()
-    landmarks |= set(new_landmarks)
-    lock.release()
-    msg = csv.DrawLandmarksRequest(
-        name = None,
-        landmarks = [lmk.to_msg() for lmk in landmarks])
-    draw_landmarks_proxy(msg)
-    return csv.AddRandomLandmarksResponse()
-
-add_rlm_srv = rp.Service(
-    'add_random_landmarks',
-    csv.AddRandomLandmarks,
-    add_random_landmarks_handler
-)
+# def add_random_landmarks_handler(req):
+#     global landmarks
+#     global lock
+#     new_landmarks = [
+#         lm.Landmark.random(
+#         	xlim=0.3*np.array(XLIM),
+#         	ylim=0.3*np.array(YLIM),
+#             zlim=0.3*np.array(ZLIM))
+#         for index in range(req.num)]
+#     lock.acquire()
+#     landmarks |= set(new_landmarks)
+#     lock.release()
+#     msg = csv.DrawLandmarksRequest(
+#         name = None,
+#         landmarks = [lmk.to_msg() for lmk in landmarks])
+#     draw_landmarks_proxy(msg)
+#     return csv.AddRandomLandmarksResponse()
+#
+# add_rlm_srv = rp.Service(
+#     'add_random_landmarks',
+#     csv.AddRandomLandmarks,
+#     add_random_landmarks_handler
+# )
 
 
 
@@ -226,4 +226,3 @@ if __name__ == '__main__':
     while not rp.is_shutdown():
         work()
         rate.sleep()
-        

@@ -89,7 +89,7 @@ class Sensor(object):
 
     @property
     def ori(self):
-	    return np.array(self._ori)
+	    return spl.polar(self._ori)[0]
 
     @ori.setter
     def ori(self, value):

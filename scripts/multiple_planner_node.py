@@ -7,6 +7,7 @@ import coverage_3d_planner.srv as csv
 import std_msgs.msg as sms
 
 import numpy as np
+import scipy.linalg as spl
 import threading as thd
 import random as rdm
 
@@ -170,7 +171,7 @@ def take_landmarks_handler(req):
     R[:,0] = np.array(req.client_pose.x)
     R[:,1] = np.array(req.client_pose.y)
     R[:,2] = np.array(req.client_pose.z)
-
+    R = spl.polar(R)[0]
     client = sns.Sensor(
         pos = np.array(p),
         ori = np.array(R),
@@ -184,7 +185,7 @@ def take_landmarks_handler(req):
     success = False
     sensor_lock.acquire()
     for lmk in client_landmarks:
-        if sensor.perception(lmk) < client.perception(lmk):
+        if sensor.perception(lmk) < client.perception(lmk) - 1e-3:
             my_new_landmarks.add(lmk)
             success = True
         else:
@@ -294,7 +295,7 @@ def pose_cb(pose):
     R[:,2] = pose.z
     sensor_lock.acquire()
     sensor.pos = p
-    sensor.ori = R
+    sensor.ori = spl.polar(R)[0]
     sensor_lock.release()
 pose_sub = rp.Subscriber(
     'pose',
@@ -358,7 +359,7 @@ def work():
     global possible_partners
     landmarks_lock.acquire()
     incoming_landmarks_lock.acquire()
-    if len(incoming_landmarks)>0:
+    if len(incoming_landmarks) > 0:
         landmarks |= incoming_landmarks
         incoming_landmarks = set()
         possible_partners = list(PARTNERS)
@@ -376,20 +377,26 @@ def work():
         w = np.zeros(3)
     else:
         v = -kp/float(len(landmarks))*sensor.cov_pos_grad(landmarks)
+        assert len(v.tolist())==3
         v = uts.saturate(v, sp)
+        assert len(v.tolist())==3
         ori_grad = sensor.cov_ori_grad(landmarks)
         w = -kn/float(len(landmarks))*sum([np.cross(R[:,i], ori_grad[i]) for i in range(3)])
         w = uts.saturate(w, sn)
     coverage = sensor.coverage(landmarks)
     sensor_lock.release()
-    if np.linalg.norm(v)+np.linalg.norm(w) < 0.03:
+    if np.linalg.norm(v)+np.linalg.norm(w) < 2e-2:
         v = np.zeros(3)
         w = np.zeros(3)
         rp.logwarn(MY_NAME + ': possible partners: ' + str(possible_partners))
         if len(possible_partners)>0:
             request = csv.TakeLandmarksRequest(
                 MY_NAME,
-                cms.Pose(p, R[:,0], R[:,1], R[:,2]),
+                cms.Pose(
+                    p=p.tolist(),
+                    x=R[:,0].tolist(),
+                    y=R[:,1].tolist(),
+                    z=R[:,2].tolist()),
                 [lmk.to_msg() for lmk in landmarks]
                 )
             partner = rdm.choice(possible_partners)

@@ -35,7 +35,7 @@ class Landmark(object):
         ori = spl.polar(ori)[0]
         return cls(pos, ori)
 
-        
+
     @classmethod
     def random(cls, xlim, ylim, zlim):
         x = rdm.uniform(*xlim)
@@ -49,7 +49,7 @@ class Landmark(object):
 
     def to_msg(self):
         p = self.pos.tolist()
-        x, y, z = [self.ori[:,i].tolist() for i in range(3)]    
+        x, y, z = [self.ori[:,i].tolist() for i in range(3)]
         msg = cms.Landmark(p=p, x=x, y=y, z=z)
         return msg
 
@@ -120,11 +120,11 @@ class Landmark(object):
                     )
                 arrows.append(ax.add_artist(arr))
         return point, arrows
-        
-        
-        
-        
-        
+
+
+
+
+
 if __name__ == '__main__':
     plt.figure()
     ax = plt.gca(projection='3d')
