@@ -24,7 +24,7 @@ def vel_cb(vel):
     global lin_vel, ang_vel
     lin_vel = np.array(vel.linear)
     ang_vel = vel.angular
-    
+
 vel_sub = rp.Subscriber('cmd_vel', cms.Velocity, vel_cb)
 
 def work():
@@ -35,6 +35,7 @@ def work():
     dt = new_time - time
     position += lin_vel*dt
     for i in range(3):
+        #rp.logwarn(orientation)
         orientation[:,i] += np.cross(orientation[:,i], ang_vel)*dt
     #orientation = spl.polar(orientation)[0]
     pose = cms.Pose(
@@ -45,7 +46,7 @@ def work():
         )
     pose_pub.publish(pose)
     time = new_time
-    
+
 rate = rp.Rate(6e1)
 
 while not rp.is_shutdown():

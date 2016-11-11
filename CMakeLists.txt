@@ -66,6 +66,7 @@ add_service_files(
   AddLandmarkArc.srv
   TradeLandmarks.srv
   DrawLandmarks.srv
+  TakeLandmarks.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -198,5 +199,3 @@ ${catkin_INCLUDE_DIRS}
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-  
-

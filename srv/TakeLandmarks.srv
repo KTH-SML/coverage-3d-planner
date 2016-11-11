@@ -1,0 +1,6 @@
+string client_name
+Pose client_pose
+Landmark[] client_landmarks
+---
+bool success
+Landmark[] client_new_landmarks

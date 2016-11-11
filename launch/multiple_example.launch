@@ -6,7 +6,6 @@
 
 <rosparam param='name'>'Axel'</rosparam>
 <rosparam param="initial_position">[-1.0, -1.0, 0.0]</rosparam>
-<rosparam param="initial_orientation">[1.0, 1.0, 0.0]</rosparam>
 
 <node name='planner_node'
 pkg='coverage_3d_planner'
@@ -29,7 +28,6 @@ type='simulator_node.py'
 
 <rosparam param='name'>'Bo'</rosparam>
 <rosparam param="initial_position">[1.0, -1.0, 0.0]</rosparam>
-<rosparam param="initial_orientation">[-1.0, 1.0, 0.0]</rosparam>
 
 <node
 name='planner_node'
@@ -54,7 +52,6 @@ type='simulator_node.py'
 
 <rosparam param='name'>'Calle'</rosparam>
 <rosparam param="initial_position">[-1.0, 1.0, 0.0]</rosparam>
-<rosparam param="initial_orientation">[1.0, -1.0, 0.0]</rosparam>
 
 <node
 name='planner_node'
@@ -81,7 +78,6 @@ type='simulator_node.py'
 
 <rosparam param='name'>'David'</rosparam>
 <rosparam param="initial_position">[1.0, 1.0, 0.0]</rosparam>
-<rosparam param="initial_orientation">[-1.0, -1.0, 0.0]</rosparam>
 
 <node name='planner_node'
 pkg='coverage_3d_planner'

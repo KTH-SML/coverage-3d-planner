@@ -11,15 +11,22 @@ import threading as thd
 import random as rdm
 
 import landmark as lm
-import sensor as sn
+import sensor as sns
 import footprints as fp
 import utilities as uts
 
 
 
-lock = thd.Lock()
 landmarks = set()
-sensor = sn.Sensor(fp=fp.EggFootprint())
+landmarks_lock = thd.Lock()
+
+incoming_landmarks = set()
+incoming_landmarks_lock = thd.Lock()
+
+
+#sensor = sn.Sensor(fp=fp.EggFootprint())
+sensor_lock = thd.Lock()
+
 
 
 
@@ -34,21 +41,29 @@ NAMES = rp.get_param('/names').split()
 MY_NAME = rp.get_param('name')
 PARTNERS = filter(lambda x: not x == MY_NAME, NAMES)
 possible_partners = list(PARTNERS)
+#landmarks = init_lmks.LANDMARKS[MY_NAME]
+#sensor = init_sns.sensors[MY_NAME]
+landmarks = set()
+sensor = sns.Sensor(fp=fp.EggFootprint())
+
 
 XLIM = rp.get_param('xlim', (-5,5))
 YLIM = rp.get_param('ylim', (-5,5))
 ZLIM = rp.get_param('zlim', (-5,5))
 
 vel_pub = rp.Publisher('cmd_vel', cms.Velocity, queue_size=10)
-lmks_pub = rp.Publisher('landmarks', cms.LandmarkArray, queue_size=10)
+#lmks_pub = rp.Publisher('landmarks', cms.LandmarkArray, queue_size=10)
 cov_pub = rp.Publisher('coverage', sms.Float64, queue_size=10)
 
 rp.wait_for_service('/draw_landmarks')
 draw_landmarks_proxy = rp.ServiceProxy(
     '/draw_landmarks',
     csv.DrawLandmarks)
-    
 
+msg = csv.DrawLandmarksRequest(
+    name = MY_NAME,
+    landmarks = [lmk.to_msg() for lmk in landmarks])
+draw_landmarks_proxy(msg)
 
 
 #def yield_landmarks_handler(req):
@@ -75,7 +90,7 @@ draw_landmarks_proxy = rp.ServiceProxy(
 #    return csv.TradeLandmarksResponse(
 #        success = len(mine)>0,
 #        your_landmarks=[lmk.to_msg() for lmk in yours])
-#    
+#
 #yield_srv = rp.Service(
 #    'yield_landmarks',
 #    csv.TradeLandmarks,
@@ -126,7 +141,7 @@ draw_landmarks_proxy = rp.ServiceProxy(
 #    return csv.TradeLandmarksResponse(
 #        success = success,
 #        your_landmarks=[lmk.to_msg() for lmk in yours])
-#    
+#
 #trade_srv = rp.Service(
 #    'trade_landmarks',
 #    csv.TradeLandmarks,
@@ -150,9 +165,15 @@ draw_landmarks_proxy = rp.ServiceProxy(
 def take_landmarks_handler(req):
     global incoming_landmarks, incoming_landmarks_lock
     global sensor, sensor_lock
+    R = np.zeros((3,3))
+    p = np.array(req.client_pose.p)
+    R[:,0] = np.array(req.client_pose.x)
+    R[:,1] = np.array(req.client_pose.y)
+    R[:,2] = np.array(req.client_pose.z)
+
     client = sns.Sensor(
-        pos = np.array(req.client_pose.position),
-        ori = np.array(req.client_pose.orientation),
+        pos = np.array(p),
+        ori = np.array(R),
         fp = fp.EggFootprint()
         )
     client_landmarks = [
@@ -177,7 +198,7 @@ def take_landmarks_handler(req):
         success = success,
         client_new_landmarks = [lmk.to_msg() for lmk in client_new_landmarks]
         )
-        
+
 take_landmarks_service = rp.Service(
     'take_landmarks',
     csv.TakeLandmarks,
@@ -230,27 +251,18 @@ for partner in PARTNERS:
 
 
 def add_random_landmarks_handler(req):
-    global landmarks
-    global lock
-    global PARTNERS, possible_partners
+    global incoming_landmarks, incoming_landmarks_lock
     new_lmks = set()
     for index in range(req.num):
         new_lmks.add(lm.Landmark.random(
 	        xlim=0.5*np.array(XLIM),
 	        ylim=0.5*np.array(YLIM),
             zlim=0.5*np.array(ZLIM)))
-    lock.acquire()
-    if req.num>0:
-        possible_partners = list(PARTNERS)
-        rp.logwarn(MY_NAME + ': reset partners: ' + str(possible_partners))
-    landmarks |= new_lmks
-    lock.release()
-    msg = csv.DrawLandmarksRequest(
-        name = MY_NAME,
-        landmarks = [lmk.to_msg() for lmk in landmarks])
-    draw_landmarks_proxy(msg)
+    incoming_landmarks_lock.acquire()
+    incoming_landmarks |= new_lmks
+    incoming_landmarks_lock.release()
     return csv.AddRandomLandmarksResponse()
-    
+
 add_lmk_srv = rp.Service(
     'add_random_landmarks',
     csv.AddRandomLandmarks,
@@ -260,12 +272,12 @@ add_lmk_srv = rp.Service(
 
 
 def change_gains_handler(req):
-    global KP, KN
-    global lock
-    lock.acquire()
-    KP = req.position_gain
-    KN = req.orientation_gain
-    lock.release()
+    global kp, kn
+    global sensor_lock
+    sensor_lock.acquire()
+    kp = req.position_gain
+    kn = req.orientation_gain
+    sensor_lock.release()
     return csv.ChangeGainsResponse()
 chg_gns_srv = rp.Service(
     'change_gains',
@@ -274,17 +286,16 @@ chg_gns_srv = rp.Service(
 
 
 def pose_cb(pose):
-    global sensor
-    global lock
+    global sensor, sensor_lock
     p = np.array(pose.p)
     R = np.eye(3)
     R[:,0] = pose.x
     R[:,1] = pose.y
     R[:,2] = pose.z
-    lock.acquire()
+    sensor_lock.acquire()
     sensor.pos = p
     sensor.ori = R
-    lock.release()
+    sensor_lock.release()
 pose_sub = rp.Subscriber(
     'pose',
     cms.Pose,
@@ -292,20 +303,13 @@ pose_sub = rp.Subscriber(
 
 
 def add_landmark_handler(req):
-    global landmarks
-    global lock
-    global PARTNERS, possible_partners
+    global incoming_landmarks, incoming_landmarks_lock
     lmk = lm.Landmark.from_msg(req.landmark)
-    lock.acquire()
-    possible_partners = list(PARTNERS)
-    landmarks.add(lmk)
-    lock.release()
-    msg = csv.DrawLandmarksRequest(
-        name = MY_NAME,
-        landmarks = [lmk.to_msg() for lmk in landmarks])
-    draw_landmarks_proxy(msg)
+    incoming_landmarks_lock.acquire()
+    incoming_landmarks.add(lmk)
+    incoming_landmarks_lock.release()
     return csv.AddLandmarkResponse()
-    
+
 add_lmk_srv = rp.Service(
     'add_landmark',
     csv.AddLandmark,
@@ -324,7 +328,7 @@ def change_landmarks_handler(req):
         landmarks = [lmk.to_msg() for lmk in landmarks])
     draw_landmarks_proxy(msg)
     return csv.ChangeLandmarksResponse()
-    
+
 chg_lmk_srv = rp.Service(
     'change_landmarks',
     csv.ChangeLandmarks,
@@ -373,9 +377,8 @@ def work():
     else:
         v = -kp/float(len(landmarks))*sensor.cov_pos_grad(landmarks)
         v = uts.saturate(v, sp)
-        ori_grad = sensor.ori_grad(landmarks)
-        w = -kn/float(len(landmarks))*sum([np.cross(R[:,i],
-            ori_graid[i] for i in range(3)])
+        ori_grad = sensor.cov_ori_grad(landmarks)
+        w = -kn/float(len(landmarks))*sum([np.cross(R[:,i], ori_grad[i]) for i in range(3)])
         w = uts.saturate(w, sn)
     coverage = sensor.coverage(landmarks)
     sensor_lock.release()
@@ -385,7 +388,8 @@ def work():
         rp.logwarn(MY_NAME + ': possible partners: ' + str(possible_partners))
         if len(possible_partners)>0:
             request = csv.TakeLandmarksRequest(
-                cms.Pose(p,R),
+                MY_NAME,
+                cms.Pose(p, R[:,0], R[:,1], R[:,2]),
                 [lmk.to_msg() for lmk in landmarks]
                 )
             partner = rdm.choice(possible_partners)
@@ -415,7 +419,7 @@ def work():
         rate = FAST_RATE
     #lmks_msg = [lmk.to_msg() for lmk in landmarks]
     landmarks_lock.release()
-    cov_vel = cms.Velocity(linear=v, angular=w)
+    cov_vel = cms.Velocity(linear=v.tolist(), angular=w.tolist())
     vel_pub.publish(cov_vel)
     #lmks_pub.publish(lmks_msg)
     cov_pub.publish(coverage)
@@ -431,4 +435,3 @@ def work():
 if __name__ == '__main__':
     while not rp.is_shutdown():
         work()
-        

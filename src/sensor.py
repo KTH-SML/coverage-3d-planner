@@ -94,7 +94,7 @@ class Sensor(object):
     @ori.setter
     def ori(self, value):
 	    self._ori = spl.polar(value)[0]
-	    
+
     @property
     def color(self):
         return self._color
@@ -102,8 +102,8 @@ class Sensor(object):
     @color.setter
     def color(self, value):
         self._color = value
-        
-        
+
+
 
 
     def draw(self,
@@ -124,6 +124,10 @@ class Sensor(object):
         if draw_orientation:
             for j in range(3):
                 vec = scale*self.ori[:,j]
+                if j > 0:
+                    alph = 0.2*alpha
+                else:
+                    alph = alpha
                 arr = a3d.Arrow3D(
                     [x, x+vec[0]],
                     [y, y+vec[1]],
@@ -132,13 +136,13 @@ class Sensor(object):
                     lw=1,
                     arrowstyle="-|>",
                     color=color,
-                    alpha=alpha
+                    alpha=alph
                     )
                 arrows.append(ax.add_artist(arr))
         return point, arrows
-        
-        
-        
+
+
+
 
 
 
