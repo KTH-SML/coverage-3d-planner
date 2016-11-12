@@ -16,11 +16,15 @@ class Sensor(object):
 	        pos=np.array([0.0,0.0,0.0]),
 	        ori=np.eye(3),
 	        fp=fps.EggFootprint(),
+            #pos,
+            #ori,
+            #fp,
 	        color = 'black',
 	        landmarks = []
 	        ):
         self._pos = np.array(pos)
-        self._ori = uts.normalize(ori)
+        self._ori = spl.polar(ori)[0]
+        self._ori /= spl.det(self._ori)
         self._fp = fp
         self._color = color
 

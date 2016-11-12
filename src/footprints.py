@@ -247,7 +247,7 @@ class EggFootprint(Footprint):
             two = np.zeros(3)
         else:
             two = (RG-FG)/2*(BD*(vec.dot(Rs[:,0]))*vec/norm + norm*(BD*Rs[:,0]+vec))
-        #x = one + two
+        # x = one + two
         x = np.zeros(3)
         y = np.zeros(3)
         z = np.zeros(3)
@@ -256,7 +256,7 @@ class EggFootprint(Footprint):
 
     def contour_plot(self, **kwargs):
         BD = self._BEST_DISTANCE
-        xlim = (-BD+BD,4.0*BD+BD)
+        xlim = (-BD+BD, 4.0*BD+BD)
         ylim = (-BD,BD)
         Footprint.contour_plot(self, xlim=xlim, ylim=ylim, **kwargs)
 

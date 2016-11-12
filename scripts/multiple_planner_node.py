@@ -166,7 +166,8 @@ draw_landmarks_proxy(msg)
 def take_landmarks_handler(req):
     global incoming_landmarks, incoming_landmarks_lock
     global sensor, sensor_lock
-    R = np.zeros((3,3))
+    #rp.logwarn(req.client_name + ": " + str(req.client_pose))
+    R = np.eye(3)
     p = np.array(req.client_pose.p)
     R[:,0] = np.array(req.client_pose.x)
     R[:,1] = np.array(req.client_pose.y)
@@ -177,6 +178,7 @@ def take_landmarks_handler(req):
         ori = np.array(R),
         fp = fp.EggFootprint()
         )
+    rp.logwarn(client)
     client_landmarks = [
         lm.Landmark.from_msg(lmk_msg) for lmk_msg in req.client_landmarks
         ]
@@ -184,8 +186,10 @@ def take_landmarks_handler(req):
     client_new_landmarks = set()
     success = False
     sensor_lock.acquire()
+    #rp.logwarn(sensor.pos)
     for lmk in client_landmarks:
-        if sensor.perception(lmk) < client.perception(lmk) - 1e-3:
+        #rp.logwarn(client.perception(lmk)-sensor.perception(lmk))
+        if sensor.perception(lmk) < client.perception(lmk) - 1e-2:
             my_new_landmarks.add(lmk)
             success = True
         else:
@@ -381,26 +385,31 @@ def work():
         v = uts.saturate(v, sp)
         assert len(v.tolist())==3
         ori_grad = sensor.cov_ori_grad(landmarks)
-        w = -kn/float(len(landmarks))*sum([np.cross(R[:,i], ori_grad[i]) for i in range(3)])
+        #w = -kn/float(len(landmarks))*sum([np.cross(R[:,i], ori_grad[i]) for i in range(3)])
+        w = kn/float(len(landmarks))*sum([
+            uts.skew(ori_grad[i]).dot(R[:,i])
+            for i in range(3)])
+        assert len(w)==3
         w = uts.saturate(w, sn)
     coverage = sensor.coverage(landmarks)
     sensor_lock.release()
     if np.linalg.norm(v)+np.linalg.norm(w) < 2e-2:
         v = np.zeros(3)
         w = np.zeros(3)
-        rp.logwarn(MY_NAME + ': possible partners: ' + str(possible_partners))
+        rp.loginfo(MY_NAME + ': possible partners: ' + str(possible_partners))
         if len(possible_partners)>0:
             request = csv.TakeLandmarksRequest(
-                MY_NAME,
-                cms.Pose(
+                client_name=MY_NAME,
+                client_pose=cms.Pose(
                     p=p.tolist(),
                     x=R[:,0].tolist(),
                     y=R[:,1].tolist(),
                     z=R[:,2].tolist()),
-                [lmk.to_msg() for lmk in landmarks]
-                )
+                client_landmarks=[
+                    lmk.to_msg() for lmk in landmarks])
+            rp.logwarn(MY_NAME + ": " + str(request.client_pose))
             partner = rdm.choice(possible_partners)
-            rp.logwarn(MY_NAME + ': I will give landmarks to ' + partner)
+            #rp.loginfo(MY_NAME + ': I will give landmarks to ' + partner)
             try:
                 response = take_landmarks_proxies[partner](request)
                 if response.success:
@@ -411,15 +420,15 @@ def work():
                         name = MY_NAME,
                         landmarks = [lmk.to_msg() for lmk in landmarks])
                     draw_landmarks_proxy(msg)
-                    rp.logwarn(MY_NAME + ': I gave some landmarks to ' + partner)
+                    rp.loginfo(MY_NAME + ': I gave some landmarks to ' + partner)
                 else:
                     possible_partners.remove(partner)
-                    rp.logwarn(MY_NAME + ': I could not give any landmark to ' + partner)
+                    rp.loginfo(MY_NAME + ': I could not give any landmark to ' + partner)
             except Exception as err:
-                rp.logwarn(MY_NAME + ': ' + partner + ' is unavailable')
-                rp.logwarn(err)
+                rp.logerr(MY_NAME + ': ' + partner + ' is unavailable')
+                rp.logerr(err)
         else:
-            rp.logwarn(MY_NAME + ': no possible partners')
+            rp.loginfo(MY_NAME + ': no possible partners')
         rate = SLOW_RATE
     else:
         possible_partners = list(PARTNERS)
