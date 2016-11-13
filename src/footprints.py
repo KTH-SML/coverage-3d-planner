@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import warnings as wrn
+import rospy as rp
 
 
 
@@ -157,7 +157,7 @@ class SphericalFootprint(Footprint):
     def pos_grad(self, ps, Rs, pl, Rl):
         BD = self._BEST_DISTANCE
         OW = self._ORI_WEIGHT
-        result = np.zeros(3,1)
+        result = np.zeros(3)
         result += 2*ps+2*BD*Rs[:,0]-2*pl
         result += OW*(2*ps+2*BD*Rl[:,0]-2*pl)
         return result
@@ -187,7 +187,7 @@ class EggFootprint(Footprint):
 
     def __init__(self,
             best_distance=1.0,
-            front_gain=0.01,
+            front_gain=0.1,
             rear_gain=1.0,
             facet_gain=0.0):
         if rear_gain < front_gain:
@@ -222,36 +222,38 @@ class EggFootprint(Footprint):
         vec = ps+BD*Rs[:,0]-pl
         norm = np.linalg.norm(vec)
         one = (FG+RG)*vec
-        if norm<1e-4:
+        if norm < 1e-4:
             two = np.zeros(3)
         else:
             two = (RG-FG)/2*((vec.dot(Rs[:,0]))*vec/norm+norm*Rs[:,0])
         vec = ps+BD*Rl[:,0]-pl
         norm = np.linalg.norm(vec)
         three = (FG+RG)*vec
-        if norm == 0:
+        if norm > 1e-4:
             four = np.zeros(3)
         else:
             four = (RG-FG)/2*((vec.dot(Rl[:,0]))*vec/norm+norm*Rl[:,0])
         return one + two + MG*(three + four)
+        #return np.zeros(3)
 
 
     def ori_grad(self, ps, Rs, pl, Rl):
         BD = self._BEST_DISTANCE
         FG = self._FRONT_GAIN
         RG = self._REAR_GAIN
-        vec = ps+BD*Rs[:,0]-pl
+        n = Rs[:,0]
+        #rp.logwarn(np.linalg.norm(n))
+        vec = ps+BD*n-pl
         norm = np.linalg.norm(vec)
         one = BD*(FG+RG)*vec
-        if norm<1e-4:
+        if norm < 1e-4:
             two = np.zeros(3)
         else:
-            two = (RG-FG)/2*(BD*(vec.dot(Rs[:,0]))*vec/norm + norm*(BD*Rs[:,0]+vec))
-        # x = one + two
-        x = np.zeros(3)
-        y = np.zeros(3)
-        z = np.zeros(3)
-        return x, y, z
+            #two = (RG-FG)/2*(BD*(vec.dot(Rs[:,0]))*vec/norm + norm*(BD*Rs[:,0]+vec))
+            two = (RG-FG)/2*(vec/norm*BD*(vec.dot(n)) + norm*(ps-pl))
+        res = np.zeros((3,3))
+        res[:,0] = one + two
+        return res
 
 
     def contour_plot(self, **kwargs):

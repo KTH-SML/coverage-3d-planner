@@ -23,8 +23,7 @@ class Sensor(object):
 	        landmarks = []
 	        ):
         self._pos = np.array(pos)
-        self._ori = spl.polar(ori)[0]
-        self._ori /= spl.det(self._ori)
+        self._ori = np.array(ori)
         self._fp = fp
         self._color = color
 
@@ -72,15 +71,8 @@ class Sensor(object):
 
 
     def cov_ori_grad(self, landmarks):
-        x = np.zeros(3)
-        y = np.zeros(3)
-        z = np.zeros(3)
-        for lmk in landmarks:
-            dx, dy, dz = self.per_ori_grad(lmk)
-            x += dx
-            y += dy
-            z += dz
-	    return x, y, z
+        return sum([self.per_ori_grad(lmk)
+		    for lmk in landmarks], np.zeros((3,3)))
 
 
     @property
@@ -93,11 +85,11 @@ class Sensor(object):
 
     @property
     def ori(self):
-	    return spl.polar(self._ori)[0]
+        return np.array(self._ori)
 
     @ori.setter
     def ori(self, value):
-	    self._ori = spl.polar(value)[0]
+        self._ori = np.array(value)
 
     @property
     def color(self):

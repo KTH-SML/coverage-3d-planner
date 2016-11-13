@@ -53,6 +53,38 @@ draw_landmarks_proxy = rp.ServiceProxy(
 
 
 
+
+
+
+
+
+def add_random_landmarks_handler(req):
+    global lock, landmarks
+    new_lmks = set()
+    for index in range(req.num):
+        new_lmks.add(lm.Landmark.random(
+	        xlim=0.5*np.array(XLIM),
+	        ylim=0.5*np.array(YLIM),
+            zlim=0.5*np.array(ZLIM)))
+    lock.acquire()
+    landmarks |= new_lmks
+    msg = csv.DrawLandmarksRequest(
+        name = None,
+        landmarks = [lmk.to_msg() for lmk in landmarks])
+    draw_landmarks_proxy(msg)
+    lock.release()
+    return csv.AddRandomLandmarksResponse()
+
+rp.Service(
+    'add_random_landmarks',
+    csv.AddRandomLandmarks,
+    add_random_landmarks_handler
+)
+
+
+
+
+
 # def add_landmark_arc_handler(req):
 #     global landmarks
 #     global lock
@@ -114,7 +146,7 @@ def change_gains_handler(req):
     KN = req.orientation_gain
     lock.release()
     return csv.ChangeGainsResponse()
-chg_gns_srv = rp.Service(
+rp.Service(
     'change_gains',
     csv.ChangeGains,
     change_gains_handler)
@@ -125,14 +157,15 @@ def pose_cb(pose):
     global lock
     p = np.array(pose.p)
     R = np.eye(3)
-    R[:,0] = pose.x
-    R[:,1] = pose.y
-    R[:,2] = pose.z
+    R[:,0] = np.array(pose.x)
+    R[:,1] = np.array(pose.y)
+    R[:,2] = np.array(pose.z)
     lock.acquire()
     sensor.pos = p
-    sensor.ori = R
+    #sensor.ori = uts.rotation_fix(R)
+    sensor.ori = np.array(R)
     lock.release()
-pose_sub = rp.Subscriber(
+rp.Subscriber(
     'pose',
     cms.Pose,
     pose_cb)
@@ -150,8 +183,7 @@ def add_landmark_handler(req):
         landmarks = [lmk.to_msg() for lmk in landmarks])
     draw_landmarks_proxy(msg)
     return csv.AddLandmarkResponse()
-
-add_lmk_srv = rp.Service(
+rp.Service(
     'add_landmark',
     csv.AddLandmark,
     add_landmark_handler)
@@ -169,8 +201,7 @@ def change_landmarks_handler(req):
         landmarks = [lmk.to_msg() for lmk in landmarks])
     draw_landmarks_proxy(msg)
     return csv.ChangeLandmarksResponse()
-
-chg_lmk_srv = rp.Service(
+rp.Service(
     'change_landmarks',
     csv.ChangeLandmarks,
     change_landmarks_handler
@@ -194,19 +225,23 @@ def work():
     global lock
     lock.acquire()
     coverage = sensor.coverage(landmarks)
-    p = sensor.pos
-    R = sensor.ori
+    p = np.array(sensor.pos)
+    R = np.array(sensor.ori)
+    #R = uts.rotation_fix(sensor.ori)
+    #rp.logwarn(len(landmarks))
     if len(landmarks) == 0:
         v = np.zeros(3)
         w = np.zeros(3)
     else:
         #v = -smart_gain(coverage,KP/10,KP)*sensor.cov_pos_grad(landmarks)
-        v = -KP/len(landmarks)*sensor.cov_pos_grad(landmarks)
-        v = uts.saturate(v,SP)
+        v = -KP/float(len(landmarks))*sensor.cov_pos_grad(landmarks)
+        v = uts.saturate(v, SP)
         #w = -smart_gain(coverage,KN/10,KN)*np.cross(n, sensor.cov_ori_grad(landmarks))
-        og = sensor.cov_ori_grad(landmarks)
-        #w = KN/len(landmarks)*np.cross(R[:,0], og[0])
-        w = -KN/len(landmarks)*sum([np.cross(R[:,i], og[i]) for i in range(3)])
+        #rp.logwarn(landmarks)
+        og = sensor.cov_ori_grad(landmarks)[:,0]
+        #rp.logwarn(og)
+        w = -KN/(float(len(landmarks)))*uts.skew(og).dot(R[:,0])
+        #w = KN/float(len(landmarks))*sum([np.cross(R[:,i], og[i]) for i in range(3)])
         w = uts.saturate(w, SN)
     coverage = sensor.coverage(landmarks)
     #lmks_msg = [lmk.to_msg() for lmk in landmarks]

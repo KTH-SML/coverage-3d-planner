@@ -172,13 +172,13 @@ def take_landmarks_handler(req):
     R[:,0] = np.array(req.client_pose.x)
     R[:,1] = np.array(req.client_pose.y)
     R[:,2] = np.array(req.client_pose.z)
-    R = spl.polar(R)[0]
+    R = uts.rotation_fix(R)
     client = sns.Sensor(
         pos = np.array(p),
         ori = np.array(R),
         fp = fp.EggFootprint()
         )
-    rp.logwarn(client)
+    #rp.logwarn(client)
     client_landmarks = [
         lm.Landmark.from_msg(lmk_msg) for lmk_msg in req.client_landmarks
         ]
@@ -299,7 +299,7 @@ def pose_cb(pose):
     R[:,2] = pose.z
     sensor_lock.acquire()
     sensor.pos = p
-    sensor.ori = spl.polar(R)[0]
+    sensor.ori = uts.rotation_fix(R)
     sensor_lock.release()
 pose_sub = rp.Subscriber(
     'pose',
@@ -376,6 +376,8 @@ def work():
     sensor_lock.acquire()
     p = sensor.pos
     R = sensor.ori
+    #rp.logwarn(np.linalg.det(R))
+    assert np.linalg.det(R) > 0.0
     if len(landmarks) == 0:
         v = np.zeros(3)
         w = np.zeros(3)
@@ -385,18 +387,20 @@ def work():
         v = uts.saturate(v, sp)
         assert len(v.tolist())==3
         ori_grad = sensor.cov_ori_grad(landmarks)
+        #rp.logwarn(ori_grad)
         #w = -kn/float(len(landmarks))*sum([np.cross(R[:,i], ori_grad[i]) for i in range(3)])
         w = kn/float(len(landmarks))*sum([
-            uts.skew(ori_grad[i]).dot(R[:,i])
+            np.cross(R[:,i], ori_grad[:,i])
             for i in range(3)])
-        assert len(w)==3
+        #assert len(w)==3
+        #rp.logwarn(w.dot(ori_grad[0]))
         w = uts.saturate(w, sn)
     coverage = sensor.coverage(landmarks)
     sensor_lock.release()
     if np.linalg.norm(v)+np.linalg.norm(w) < 2e-2:
         v = np.zeros(3)
         w = np.zeros(3)
-        rp.loginfo(MY_NAME + ': possible partners: ' + str(possible_partners))
+        #rp.loginfo(MY_NAME + ': possible partners: ' + str(possible_partners))
         if len(possible_partners)>0:
             request = csv.TakeLandmarksRequest(
                 client_name=MY_NAME,
@@ -407,7 +411,7 @@ def work():
                     z=R[:,2].tolist()),
                 client_landmarks=[
                     lmk.to_msg() for lmk in landmarks])
-            rp.logwarn(MY_NAME + ": " + str(request.client_pose))
+            rp.loginfo(MY_NAME + ": " + str(request.client_pose))
             partner = rdm.choice(possible_partners)
             #rp.loginfo(MY_NAME + ': I will give landmarks to ' + partner)
             try:

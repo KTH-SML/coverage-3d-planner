@@ -105,7 +105,7 @@ def work():
             if not len(las)==0:
                 for la in las:
                     la.remove()
-        lmks_artists = [lmk.draw(draw_orientation=True) for lmk in landmarks]
+        lmks_artists = [lmk.draw() for lmk in landmarks]
         draw_landmarks_flag = False
     landmarks_lock.release()
     plt.draw()

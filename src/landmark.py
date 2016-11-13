@@ -21,7 +21,7 @@ class Landmark(object):
             color='black'
             ):
         self._pos = np.array(pos)
-        self._ori = spl.polar(ori)[0]
+        self._ori = np.array(ori)
         self._color = color
 
 
@@ -32,7 +32,7 @@ class Landmark(object):
         ori[:,0] = msg.x
         ori[:,1] = msg.y
         ori[:,2] = msg.z
-        ori = spl.polar(ori)[0]
+        #ori = uts.rotation_fix(ori)
         return cls(pos, ori)
 
 
@@ -43,7 +43,7 @@ class Landmark(object):
         z = rdm.uniform(*zlim)
         pos = np.array([x,y,z])
         ori = np.random.rand(3,3)-0.5*np.ones((3,3))
-        ori = spl.polar(ori)[0]
+        ori = uts.rotation_fix(ori)
         return cls(pos, ori)
 
 
@@ -73,12 +73,12 @@ class Landmark(object):
 
     @property
     def ori(self):
-        return np.array(self._ori)
+        return self._ori
 
 
     @ori.setter
     def ori(self, value):
-        self._ori = spl.polar(value)[0]
+        self._ori = value
 
 
     @property
@@ -92,7 +92,7 @@ class Landmark(object):
 
 
     def draw(self,
-            draw_orientation=True,
+            draw_orientation=False,
             scale=1.0,
             alpha=1.0,
             color=None
@@ -107,6 +107,10 @@ class Landmark(object):
         arrows = list()
         if draw_orientation:
             for j in range(3):
+                if j == 0:
+                    alph = alpha
+                else:
+                    alph = alpha*0.2
                 vec = scale*self.ori[:,j]
                 arr = a3d.Arrow3D(
                     [x, x+vec[0]],
@@ -116,7 +120,7 @@ class Landmark(object):
                     lw=1,
                     arrowstyle="-|>",
                     color=color,
-                    alpha=alpha
+                    alpha=alph
                     )
                 arrows.append(ax.add_artist(arr))
         return point, arrows
