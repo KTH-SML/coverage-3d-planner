@@ -186,10 +186,10 @@ class SphericalFootprint(Footprint):
 class EggFootprint(Footprint):
 
     def __init__(self,
-            best_distance=1.0,
+            best_distance=2.0,
             front_gain=0.1,
-            rear_gain=1.0,
-            facet_gain=0.0):
+            rear_gain=2.0,
+            facet_gain=2.0):
         if rear_gain < front_gain:
             wrn.warn('The rear gain is smaller than the front gain.')
         self._BEST_DISTANCE = best_distance
@@ -229,10 +229,11 @@ class EggFootprint(Footprint):
         vec = ps+BD*Rl[:,0]-pl
         norm = np.linalg.norm(vec)
         three = (FG+RG)*vec
-        if norm > 1e-4:
+        if norm < 1e-4:
             four = np.zeros(3)
         else:
-            four = (RG-FG)/2*((vec.dot(Rl[:,0]))*vec/norm+norm*Rl[:,0])
+            #four = (RG-FG)/2*((vec.dot(Rs[:,0]))*vec/norm+norm*Rs[:,0])
+            four = (RG-FG)/2*((vec.dot(Rs[:,0]))*vec/norm+norm*Rl[:,0])
         return one + two + MG*(three + four)
         #return np.zeros(3)
 
@@ -241,18 +242,22 @@ class EggFootprint(Footprint):
         BD = self._BEST_DISTANCE
         FG = self._FRONT_GAIN
         RG = self._REAR_GAIN
-        n = Rs[:,0]
-        #rp.logwarn(np.linalg.norm(n))
-        vec = ps+BD*n-pl
+        MG = self._FACET_GAIN
+        vec = ps+BD*Rs[:,0]-pl
         norm = np.linalg.norm(vec)
         one = BD*(FG+RG)*vec
         if norm < 1e-4:
             two = np.zeros(3)
         else:
             #two = (RG-FG)/2*(BD*(vec.dot(Rs[:,0]))*vec/norm + norm*(BD*Rs[:,0]+vec))
-            two = (RG-FG)/2*(vec/norm*BD*(vec.dot(n)) + norm*(ps-pl))
+            two = (RG-FG)/2*(vec/norm*BD*(vec.dot(Rs[:,0])) + norm*(ps-pl))
+        vec = ps+BD*Rl[:,0]-pl
+        norm = np.linalg.norm(vec)
+        three = np.zeros(3)
+        #four = (RG-FG)/2*norm*vec
+        four = np.zeros(3)
         res = np.zeros((3,3))
-        res[:,0] = one + two
+        res[:,0] = one + two + MG*(three+four)
         return res
 
 

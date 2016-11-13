@@ -16,6 +16,9 @@ import sensor as sns
 import footprints as fp
 import utilities as uts
 
+import init_sensors as isn
+import init_landmarks as ilm
+
 
 
 landmarks = set()
@@ -42,10 +45,10 @@ NAMES = rp.get_param('/names').split()
 MY_NAME = rp.get_param('name')
 PARTNERS = filter(lambda x: not x == MY_NAME, NAMES)
 possible_partners = list(PARTNERS)
-#landmarks = init_lmks.LANDMARKS[MY_NAME]
-#sensor = init_sns.sensors[MY_NAME]
-landmarks = set()
-sensor = sns.Sensor(fp=fp.EggFootprint())
+landmarks = ilm.INIT_ASSIGNMENT[MY_NAME]
+sensor = isn.sensors[MY_NAME]
+#landmarks = set()
+#sensor = sns.Sensor(fp=fp.EggFootprint())
 
 
 XLIM = rp.get_param('xlim', (-5,5))
@@ -392,12 +395,14 @@ def work():
         w = kn/float(len(landmarks))*sum([
             np.cross(R[:,i], ori_grad[:,i])
             for i in range(3)])
+        ZVERS = np.array([0.0, 0.0, 1.0])
+        w = (w.dot(ZVERS))*ZVERS
         #assert len(w)==3
         #rp.logwarn(w.dot(ori_grad[0]))
         w = uts.saturate(w, sn)
     coverage = sensor.coverage(landmarks)
     sensor_lock.release()
-    if np.linalg.norm(v)+np.linalg.norm(w) < 2e-2:
+    if np.linalg.norm(v)+np.linalg.norm(w) < 1e-3*sensor.coverage(landmarks):
         v = np.zeros(3)
         w = np.zeros(3)
         #rp.loginfo(MY_NAME + ': possible partners: ' + str(possible_partners))
@@ -411,9 +416,9 @@ def work():
                     z=R[:,2].tolist()),
                 client_landmarks=[
                     lmk.to_msg() for lmk in landmarks])
-            rp.loginfo(MY_NAME + ": " + str(request.client_pose))
+            #rp.logwarn(MY_NAME + ": " + str(request.client_pose))
             partner = rdm.choice(possible_partners)
-            #rp.loginfo(MY_NAME + ': I will give landmarks to ' + partner)
+            rp.loginfo(MY_NAME + ': I will give landmarks to ' + partner)
             try:
                 response = take_landmarks_proxies[partner](request)
                 if response.success:
@@ -424,15 +429,15 @@ def work():
                         name = MY_NAME,
                         landmarks = [lmk.to_msg() for lmk in landmarks])
                     draw_landmarks_proxy(msg)
-                    rp.loginfo(MY_NAME + ': I gave some landmarks to ' + partner)
+                    rp.logwarn(MY_NAME + ': I gave some landmarks to ' + partner)
                 else:
                     possible_partners.remove(partner)
-                    rp.loginfo(MY_NAME + ': I could not give any landmark to ' + partner)
+                    rp.logwarn(MY_NAME + ': I could not give any landmark to ' + partner)
             except Exception as err:
                 rp.logerr(MY_NAME + ': ' + partner + ' is unavailable')
                 rp.logerr(err)
         else:
-            rp.loginfo(MY_NAME + ': no possible partners')
+            rp.logwarn(MY_NAME + ': no possible partners')
         rate = SLOW_RATE
     else:
         possible_partners = list(PARTNERS)

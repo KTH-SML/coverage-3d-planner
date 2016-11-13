@@ -13,14 +13,13 @@ class Sensor(object):
 
     def __init__(
 	        self,
-	        pos=np.array([0.0,0.0,0.0]),
+	        pos=np.zeros(3),
 	        ori=np.eye(3),
 	        fp=fps.EggFootprint(),
             #pos,
             #ori,
             #fp,
-	        color = 'black',
-	        landmarks = []
+	        color = 'black'
 	        ):
         self._pos = np.array(pos)
         self._ori = np.array(ori)
@@ -36,17 +35,23 @@ class Sensor(object):
 	    return string
 
 
-    def perception(self, lmk):
-	    p = self._pos
-	    R = self._ori
-	    q = lmk.pos
-	    S = lmk.ori
-	    return self._fp(p,R,q,S)
+    def perception(self, lmk, pos=None, ori=None):
+        if pos == None:
+            pos = self._pos
+        if ori == None:
+            ori = self._ori
+        q = lmk.pos
+        S = lmk.ori
+        return self._fp(pos,ori,q,S)
 
 
-    def coverage(self, landmarks):
-	    return sum([self.perception(lmk)
-		    for lmk in landmarks], 0.0)
+    def coverage(self, landmarks, pos=None, ori=None):
+        if pos == None:
+            pos = self._pos
+        if ori == None:
+            ori = self._ori
+        return sum([self.perception(lmk, pos, ori)
+            for lmk in landmarks], 0.0)
 
 
     def per_pos_grad(self, lmk):
@@ -139,6 +144,53 @@ class Sensor(object):
 
 
 
+    def contour_plot(
+            self,
+            landmarks = set(),
+            z_func = None,
+            Rs_func = None,
+            xlim = None,
+            ylim = None,
+            num_points = 100,
+            filename = None
+            ):
+        if Rs_func == None:
+            def Rs_func(plx, ply):
+                return self._ori
+        if z_func == None:
+            def z_func(plx, ply):
+                return self._pos[2]
+        if filename == None:
+            filename = self.__class__.__name__ + '.pdf'
+        if xlim == None:
+            xlim = (-1.0,1.0)
+        if ylim == None:
+            ylim = tuple(xlim)
+        xvec = np.linspace(
+            self._pos[0]+xlim[0],
+            self._pos[0]+xlim[1],
+            num=num_points)
+        yvec = np.linspace(
+            self._pos[1]+ylim[0],
+            self._pos[1]+ylim[1],
+            num=num_points)
+        zmat = np.zeros((len(xvec), len(yvec)))
+        for i, x in enumerate(xvec):
+	        for j, y in enumerate(yvec):
+		        ps = np.array([x, y, z_func(x,y)])
+		        Rs = Rs_func(x, y)
+		        zmat[j][i] = self.coverage(
+                    landmarks=landmarks,
+                    pos=ps,
+                    ori=Rs)
+        print(zmat)
+        cs = plt.contour(xvec,yvec,zmat,20)
+        plt.xlabel('$p_x$')
+        plt.ylabel('$p_y$')
+        #plt.axis('equal')
+        plt.colorbar(cs)
+        plt.grid()
+        plt.savefig(filename)
 
 
 

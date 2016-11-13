@@ -35,6 +35,8 @@ ax.set_zlim3d(*ZLIM)
 ax.set_xlabel(r'$x$')
 ax.set_ylabel(r'$y$')
 ax.set_zlabel(r'$z$')
+ax.view_init(90, 0)
+
 
 
 sensor_locks = dict()
@@ -82,7 +84,7 @@ draw_landmarks_flags = dict()
 for name in NAMES:
     landmarks[name] = set()
     draw_landmarks_flags[name] = True
-    
+
 #def landmarks_cb(msg, name):
 #    global landmarks
 #    global draw_landmarks_flags
@@ -139,7 +141,7 @@ for name in NAMES:
             scale=1.0)
         for lmk in landmarks[name]]
     landmarks_locks[name].release()
-    
+
 
 def work():
     global points, arrows, lmks_artists
@@ -165,8 +167,7 @@ def work():
                         la.remove()
             lmks_artists[name] = [
                 lmk.draw(
-                    color=COLDIC[name],
-                    draw_orientation=False)
+                    color=COLDIC[name])
                 for lmk in landmarks[name]]
             draw_landmarks_flags[name] = False
         landmarks_locks[name].release()
