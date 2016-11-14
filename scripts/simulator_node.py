@@ -16,7 +16,9 @@ pose_pub = rp.Publisher('pose', cms.Pose, queue_size=10)
 
 lin_vel = np.zeros(3)
 ang_vel = np.zeros(3)
-position = np.array([float(num) for num in rp.get_param('initial_position').split()])
+position = np.array([
+    float(num) for num in rp.get_param(
+        'initial_position').split()])
 rp.logwarn(position)
 orientation = np.array(rp.get_param('initial_orientation', np.eye(3).tolist()))
 #rp.logwarn(orientation)

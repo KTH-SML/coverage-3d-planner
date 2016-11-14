@@ -35,7 +35,7 @@ ax.set_zlim3d(*ZLIM)
 ax.set_xlabel(r'$x$')
 ax.set_ylabel(r'$y$')
 ax.set_zlabel(r'$z$')
-ax.view_init(90, 0)
+ax.view_init(45, 45)
 
 
 

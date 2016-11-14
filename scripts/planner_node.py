@@ -27,22 +27,22 @@ sensor = sn.Sensor()
 
 rp.init_node('planner_node')
 
-KP = rp.get_param('position_gain', 3.0)
+KP = rp.get_param('position_gain', 1.0)
 KN = rp.get_param('orientation_gain', 1.0)
-SP = rp.get_param('velocity_saturation', 1.0)
+SP = rp.get_param('velocity_saturation', 0.5)
 SN = rp.get_param('angular_velocity_saturation', 0.3)
 
 XLIM = rp.get_param('xlim', (-5,5))
 YLIM = rp.get_param('ylim', (-5,5))
-ZLIM = rp.get_param('zlim', (-5,5))
+ZLIM = rp.get_param('zlim', (1,5))
 
 vel_pub = rp.Publisher('cmd_vel', cms.Velocity, queue_size=10)
 lmks_pub = rp.Publisher('landmarks', cms.LandmarkArray, queue_size=10)
 cov_pub = rp.Publisher('coverage', sms.Float64, queue_size=10)
 
-rp.wait_for_service('/draw_landmarks')
+rp.wait_for_service('draw_landmarks')
 draw_landmarks_proxy = rp.ServiceProxy(
-    '/draw_landmarks',
+    'draw_landmarks',
     csv.DrawLandmarks)
 
 
@@ -61,6 +61,9 @@ draw_landmarks_proxy = rp.ServiceProxy(
 def add_random_landmarks_handler(req):
     global lock, landmarks
     new_lmks = set()
+    if req.num == None or req.num < 1:
+        rp.logwarn("Invalid argument, adding one landmark")
+        req.num = 1
     for index in range(req.num):
         new_lmks.add(lm.Landmark.random(
 	        xlim=0.5*np.array(XLIM),
@@ -241,6 +244,7 @@ def work():
         og = sensor.cov_ori_grad(landmarks)[:,0]
         #rp.logwarn(og)
         w = -KN/(float(len(landmarks)))*uts.skew(og).dot(R[:,0])
+        w = (w.dot(R[:,0]))*w
         #w = KN/float(len(landmarks))*sum([np.cross(R[:,i], og[i]) for i in range(3)])
         w = uts.saturate(w, SN)
     coverage = sensor.coverage(landmarks)

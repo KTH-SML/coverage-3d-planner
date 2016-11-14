@@ -28,7 +28,7 @@ for idx in range(NUM_LANDMARKS):
 	th = 2.0*np.pi*float(idx)/float(NUM_LANDMARKS)*float(NUM_TURNS) + np.pi/2
 	x = RADIUS*np.cos(th)
 	y = RADIUS*np.sin(th)
-	z = HEIGHT*float(idx)/float(NUM_LANDMARKS) - HEIGHT/2.0
+	z = HEIGHT*float(idx)/float(NUM_LANDMARKS) + HEIGHT/2.0
 	pos = np.array([x, y, z])
 	ori = np.eye(3)
 	ori[0,0] = -np.cos(th)

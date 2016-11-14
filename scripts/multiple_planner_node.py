@@ -36,9 +36,9 @@ sensor_lock = thd.Lock()
 
 rp.init_node('planner_node')
 
-kp = rp.get_param('position_gain', 3.0)
-kn = rp.get_param('orientation_gain', 1.0)
-sp = rp.get_param('velocity_saturation', 1.0)
+kp = rp.get_param('position_gain', 0.5)
+kn = rp.get_param('orientation_gain', 0.5)
+sp = rp.get_param('velocity_saturation', 0.5)
 sn = rp.get_param('angular_velocity_saturation', 0.3)
 
 NAMES = rp.get_param('/names').split()
@@ -392,7 +392,7 @@ def work():
         ori_grad = sensor.cov_ori_grad(landmarks)
         #rp.logwarn(ori_grad)
         #w = -kn/float(len(landmarks))*sum([np.cross(R[:,i], ori_grad[i]) for i in range(3)])
-        w = kn/float(len(landmarks))*sum([
+        w = -kn/float(len(landmarks))*sum([
             np.cross(R[:,i], ori_grad[:,i])
             for i in range(3)])
         ZVERS = np.array([0.0, 0.0, 1.0])
@@ -402,7 +402,7 @@ def work():
         w = uts.saturate(w, sn)
     coverage = sensor.coverage(landmarks)
     sensor_lock.release()
-    if np.linalg.norm(v)+np.linalg.norm(w) < 1e-3*sensor.coverage(landmarks):
+    if np.linalg.norm(v)+np.linalg.norm(w) < 1e-4*sensor.coverage(landmarks):
         v = np.zeros(3)
         w = np.zeros(3)
         #rp.loginfo(MY_NAME + ': possible partners: ' + str(possible_partners))
